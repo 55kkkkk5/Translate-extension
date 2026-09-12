@@ -1,0 +1,12 @@
+{
+  "name": "ledger-translate-server",
+  "version": "1.0.0",
+  "description": "Standalone translation proxy for the Discord Chrome extension",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
