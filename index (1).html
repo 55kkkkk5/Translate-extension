@@ -1,0 +1,3170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Ledger</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=IBM+Plex+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@600;700&display=swap" rel="stylesheet">
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<style>
+  * { box-sizing: border-box; font-family: 'IBM Plex Sans', sans-serif; }
+  body { margin: 0; background: #0A101C; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: rgba(255,255,255,.03); border-radius: 8px; }
+  ::-webkit-scrollbar-thumb { background: #3D5A85; border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+  ::-webkit-scrollbar-thumb:hover { background: #4C7BEB; }
+  * { scrollbar-width: thin; scrollbar-color: #3D5A85 rgba(255,255,255,.03); }
+  .mono { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; font-weight: 700; }
+  select option { background: #111B2D; }
+  .btn { transition: filter .12s, transform .08s; cursor: pointer; }
+  .btn:hover:not(:disabled) { filter: brightness(1.12); }
+  .btn:active:not(:disabled) { transform: scale(.97); }
+  .input { transition: border-color .12s, box-shadow .12s; }
+  .input:focus { border-color: #4C7BEB !important; box-shadow: 0 0 0 3px rgba(76,123,235,.18); outline: none; }
+  .row:hover { background: rgba(255,255,255,.02); }
+  .neon { position: relative; border-radius: 16px; background: #111B2D; border: 1px solid #1B2A42; box-shadow: 0 2px 10px rgba(0,0,0,.25); border-top: 2px solid rgba(76,123,235,.55); }
+  .neon-inner { position: relative; height: 100%; display: flex; flex-direction: column; }
+  .announce { border-bottom: 2px solid #FFE066; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo
+} = React;
+const ICONS = {
+  'book-open': '📘',
+  'layout-dashboard': '▦',
+  'plus-circle': '➕',
+  'clipboard-list': '📋',
+  'paintbrush': '🎨',
+  'users': '👥',
+  'log-out': '⏏',
+  'check-circle-2': '✅',
+  'x-circle': '✖',
+  'alert-triangle': '⚠',
+  'key-round': '🔑',
+  'send': '📤',
+  'copy': '⧉',
+  'lock': '🔒',
+  'unlock': '🔓',
+  'paperclip': '📎',
+  'download': '⬇',
+  'rotate-ccw': '↺',
+  'check-check': '✔',
+  'file-text': '📄',
+  'x': '✕',
+  'message-square-plus': '💬',
+  'refresh-cw': '🔄',
+  'megaphone': '📣',
+  'power': '⏻',
+  'thumbs-up': '👍',
+  'chevron-up': '▲',
+  'chevron-down': '▼',
+  'trophy': '🏆',
+  'trending-up': '📈',
+  'shield-check': '🛡',
+  'pen-line': '✏',
+  'link': '🔗',
+  'loader-2': '⏳',
+  'clock': '🕐',
+  'trash-2': '🗑',
+  'user-plus': '➕'
+};
+function Icon({
+  name,
+  size = 14,
+  color
+}) {
+  return /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: size,
+      lineHeight: 1,
+      color: color || 'currentColor',
+      filter: color ? undefined : undefined
+    }
+  }, ICONS[name] || '•');
+}
+
+/* ---------------- theme ---------------- */
+const theme = {
+  bg: '#0A101C',
+  bgSoft: '#0D1526',
+  surface: '#111B2D',
+  surface2: '#152238',
+  surface3: '#1B2C46',
+  border: '#24344F',
+  borderSoft: '#1B2A42',
+  text: '#E8EDF6',
+  textDim: '#8FA0BE',
+  textFaint: '#5C6E8C',
+  accent: '#4C7BEB',
+  accentSoft: 'rgba(76,123,235,.14)',
+  accentBorder: 'rgba(76,123,235,.35)',
+  gold: '#D6AD60',
+  goldSoft: 'rgba(214,173,96,.14)',
+  green: '#3FBF8F',
+  greenSoft: 'rgba(63,191,143,.14)',
+  red: '#E2685C',
+  redSoft: 'rgba(226,104,92,.14)',
+  amber: '#E0A73B',
+  amberSoft: 'rgba(224,167,59,.14)'
+};
+const CURRENCIES = ['KWD', 'BHD', 'OMR', 'GBP', 'EUR', 'CHF', 'USD', 'CAD', 'AUD', 'SGD', 'SAR', 'AED', 'PKR'];
+const CURRENCY_SYMBOLS = {
+  USD: '$',
+  EUR: '€',
+  GBP: '£',
+  PKR: '₨',
+  AED: 'د.إ',
+  KWD: 'د.ك',
+  BHD: '.د.ب',
+  OMR: 'ر.ع.',
+  CAD: 'C$',
+  AUD: 'A$',
+  SGD: 'S$',
+  SAR: '﷼',
+  CHF: 'CHF '
+};
+const PAYMENT_METHODS = ['PayPal', 'Stripe', 'Bank Transfer', 'Crypto', 'Other'];
+const ORDER_TYPES = ['2D', '3D'];
+const ROLE_LABEL = {
+  manager: 'Manager',
+  employee: 'Employee',
+  artist: 'Artist'
+};
+const TASK_COLUMNS = [{
+  key: 'pending',
+  label: 'Pending',
+  color: theme.accent,
+  icon: 'clock',
+  hint: 'In progress — updates expected every 2 days'
+}, {
+  key: 'submitted',
+  label: 'Submitted',
+  color: theme.gold,
+  icon: 'send',
+  hint: 'Artist sent work — download & review it'
+}, {
+  key: 'completed',
+  label: 'Complete',
+  color: theme.green,
+  icon: 'check-circle-2',
+  hint: 'Finished commissions'
+}, {
+  key: 'deleted',
+  label: 'Deleted',
+  color: theme.red,
+  icon: 'trash-2',
+  hint: 'Removed by the employee'
+}];
+function columnOf(t) {
+  if (t.deleted) return 'deleted';
+  if (t.status === 'completed') return 'completed';
+  if (t.status === 'revision_sent') return 'submitted';
+  return 'pending';
+}
+function labelRevisions(revisions) {
+  let n = 0;
+  return revisions.map(r => {
+    if (r.role === 'employee') return {
+      ...r,
+      label: 'Feedback'
+    };
+    n++;
+    return {
+      ...r,
+      label: 'Revision ' + n
+    };
+  });
+}
+function money(a, c) {
+  const s = CURRENCY_SYMBOLS[c] || (c ? c + ' ' : '');
+  return s + Number(a).toLocaleString(undefined, {
+    maximumFractionDigits: 2
+  });
+}
+function fmtDate(ts) {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleDateString(undefined, {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  });
+}
+function fmtDateTime(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  return d.toLocaleDateString(undefined, {
+    day: '2-digit',
+    month: 'short'
+  }) + ' · ' + d.toLocaleTimeString(undefined, {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+function daysSince(ts) {
+  if (!ts) return null;
+  return Math.floor((Date.now() - ts) / 86400000);
+}
+function fmtBytes(n) {
+  if (n == null) return '';
+  if (n < 1024) return n + ' B';
+  if (n < 1024 * 1024) return Math.round(n / 1024) + ' KB';
+  return (n / 1048576).toFixed(1) + ' MB';
+}
+
+/* ---------------- API ---------------- */
+const API = {
+  login: (name, key) => fetch('/api/login', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      name,
+      key
+    })
+  }).then(r => r.ok ? r.json() : r.json().then(e => {
+    throw new Error(e.error);
+  })),
+  me: id => fetch('/api/me/' + id).then(r => r.ok ? r.json() : null),
+  users: () => fetch('/api/users').then(r => r.json()),
+  addUser: data => fetch('/api/users', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(data)
+  }).then(r => r.json()),
+  unlockUser: id => fetch('/api/users/' + id + '/unlock', {
+    method: 'POST'
+  }).then(r => r.json()),
+  regenKey: id => fetch('/api/users/' + id + '/regenerate-key', {
+    method: 'POST'
+  }).then(r => r.json()),
+  removeUser: id => fetch('/api/users/' + id, {
+    method: 'DELETE'
+  }).then(r => r.json()),
+  orders: () => fetch('/api/orders').then(r => r.json()),
+  addOrder: fd => fetch('/api/orders', {
+    method: 'POST',
+    body: fd
+  }).then(r => r.json()),
+  verifyOrder: id => fetch('/api/orders/' + id + '/verify', {
+    method: 'POST'
+  }).then(r => r.json()),
+  rejectOrder: id => fetch('/api/orders/' + id + '/reject', {
+    method: 'POST'
+  }).then(r => r.json()),
+  tasks: () => fetch('/api/tasks').then(r => r.json()),
+  attachTask: (orderId, fd) => fetch('/api/orders/' + orderId + '/task', {
+    method: 'POST',
+    body: fd
+  }).then(r => r.json()),
+  approveTask: id => fetch('/api/tasks/' + id + '/approve', {
+    method: 'POST'
+  }).then(r => r.json()),
+  addRevision: (id, fd) => fetch('/api/tasks/' + id + '/revision', {
+    method: 'POST',
+    body: fd
+  }).then(r => r.json()),
+  setTaskStatus: (id, status) => fetch('/api/tasks/' + id + '/status', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      status
+    })
+  }).then(r => r.json()),
+  deleteTask: id => fetch('/api/tasks/' + id + '/delete', {
+    method: 'POST'
+  }).then(r => r.json()),
+  restoreTask: id => fetch('/api/tasks/' + id + '/restore', {
+    method: 'POST'
+  }).then(r => r.json()),
+  status: () => fetch('/api/status').then(r => r.json()),
+  activate: name => fetch('/api/status/activate', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      name
+    })
+  }).then(r => r.json()),
+  deactivate: () => fetch('/api/status/deactivate', {
+    method: 'POST'
+  }).then(r => r.json()),
+  postAnnouncement: (text, name) => fetch('/api/status/announcement', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      text,
+      name
+    })
+  }).then(r => r.json()),
+  clearAnnouncement: () => fetch('/api/status/announcement', {
+    method: 'DELETE'
+  }).then(r => r.json()),
+  reset: () => fetch('/api/reset', {
+    method: 'POST'
+  }).then(r => r.json())
+};
+
+/* ---------------- primitives ---------------- */
+function Field({
+  label,
+  children,
+  hint
+}) {
+  return /*#__PURE__*/React.createElement("label", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: theme.textDim,
+      fontSize: 12,
+      fontWeight: 700
+    }
+  }, label), children, hint && /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: theme.textFaint,
+      fontSize: 11
+    }
+  }, hint));
+}
+const inputStyle = {
+  background: theme.bgSoft,
+  border: `1px solid ${theme.border}`,
+  color: theme.text,
+  borderRadius: 8,
+  padding: '10px 12px',
+  fontSize: 14,
+  fontWeight: 500,
+  width: '100%'
+};
+function TextInput(p) {
+  return /*#__PURE__*/React.createElement("input", {
+    ...p,
+    className: "input",
+    style: {
+      ...inputStyle,
+      ...(p.style || {})
+    }
+  });
+}
+function TextArea(p) {
+  return /*#__PURE__*/React.createElement("textarea", {
+    ...p,
+    className: "input",
+    style: {
+      ...inputStyle,
+      resize: 'vertical',
+      minHeight: 72,
+      ...(p.style || {})
+    }
+  });
+}
+function Select({
+  children,
+  ...p
+}) {
+  return /*#__PURE__*/React.createElement("select", {
+    ...p,
+    className: "input",
+    style: {
+      ...inputStyle,
+      ...(p.style || {})
+    }
+  }, children);
+}
+function Btn({
+  children,
+  onClick,
+  variant = 'primary',
+  style,
+  disabled
+}) {
+  const variants = {
+    primary: {
+      background: theme.accent,
+      color: '#fff',
+      border: `1px solid ${theme.accent}`
+    },
+    ghost: {
+      background: 'transparent',
+      color: theme.textDim,
+      border: `1px solid ${theme.border}`
+    },
+    success: {
+      background: theme.green,
+      color: '#04201A',
+      border: `1px solid ${theme.green}`
+    },
+    danger: {
+      background: 'transparent',
+      color: theme.red,
+      border: `1px solid ${theme.red}`
+    },
+    gold: {
+      background: theme.gold,
+      color: '#2A1F08',
+      border: `1px solid ${theme.gold}`
+    }
+  };
+  return /*#__PURE__*/React.createElement("button", {
+    disabled: disabled,
+    onClick: onClick,
+    className: "btn",
+    style: {
+      ...variants[variant],
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6,
+      justifyContent: 'center',
+      borderRadius: 8,
+      padding: '9px 15px',
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: disabled ? 'not-allowed' : 'pointer',
+      opacity: disabled ? .45 : 1,
+      ...style
+    }
+  }, children);
+}
+function IconBtn({
+  icon,
+  onClick,
+  tone = theme.textFaint,
+  title
+}) {
+  return /*#__PURE__*/React.createElement("button", {
+    onClick: onClick,
+    title: title,
+    style: {
+      background: 'transparent',
+      border: 'none',
+      cursor: 'pointer',
+      color: tone,
+      padding: 6,
+      borderRadius: 6
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: icon,
+    size: 14,
+    color: tone
+  }));
+}
+function Badge({
+  children,
+  tone = 'neutral'
+}) {
+  const t = {
+    neutral: {
+      bg: theme.surface3,
+      fg: theme.textDim,
+      bd: theme.border
+    },
+    pending: {
+      bg: theme.amberSoft,
+      fg: theme.amber,
+      bd: 'rgba(224,167,59,.4)'
+    },
+    verified: {
+      bg: theme.greenSoft,
+      fg: theme.green,
+      bd: 'rgba(63,191,143,.4)'
+    },
+    rejected: {
+      bg: theme.redSoft,
+      fg: theme.red,
+      bd: 'rgba(226,104,92,.4)'
+    },
+    accent: {
+      bg: theme.accentSoft,
+      fg: theme.accent,
+      bd: theme.accentBorder
+    },
+    gold: {
+      bg: theme.goldSoft,
+      fg: theme.gold,
+      bd: 'rgba(214,173,96,.4)'
+    }
+  }[tone];
+  return /*#__PURE__*/React.createElement("span", {
+    style: {
+      background: t.bg,
+      color: t.fg,
+      border: `1px solid ${t.bd}`,
+      borderRadius: 999,
+      padding: '3px 10px',
+      fontSize: 11,
+      fontWeight: 700
+    }
+  }, children);
+}
+function Panel({
+  children,
+  style
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: theme.surface,
+      border: `1px solid ${theme.borderSoft}`,
+      borderRadius: 14,
+      padding: 20,
+      boxShadow: '0 2px 8px rgba(0,0,0,.22)',
+      ...style
+    }
+  }, children);
+}
+function NeonPanel({
+  children,
+  style
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    className: "neon"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "neon-inner",
+    style: {
+      padding: 20,
+      ...style
+    }
+  }, children));
+}
+function Rule() {
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: 1,
+      background: `repeating-linear-gradient(90deg, ${theme.border} 0, ${theme.border} 5px, transparent 5px, transparent 10px)`
+    }
+  });
+}
+
+/* ---------------- file input helper (real files, real upload) ---------------- */
+function FileField({
+  label,
+  hint,
+  file,
+  onPick,
+  onClear,
+  accent = theme.accent
+}) {
+  const id = useMemo(() => 'f' + Math.random().toString(36).slice(2), []);
+  return /*#__PURE__*/React.createElement(Field, {
+    label: label,
+    hint: !file ? hint : undefined
+  }, file ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      background: theme.bgSoft,
+      border: `1px solid ${theme.borderSoft}`,
+      borderRadius: 8,
+      padding: '9px 12px'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      fontSize: 13,
+      color: theme.text,
+      fontWeight: 700,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "file-text",
+    size: 15,
+    color: accent
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }, file.name), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: theme.textFaint,
+      fontWeight: 500,
+      flexShrink: 0
+    }
+  }, "(", fmtBytes(file.size), ")")), /*#__PURE__*/React.createElement(IconBtn, {
+    icon: "x",
+    title: "Remove",
+    onClick: onClear
+  })) : /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("input", {
+    type: "file",
+    id: id,
+    style: {
+      display: 'none'
+    },
+    onChange: e => {
+      const f = e.target.files[0];
+      if (f) onPick(f);
+      e.target.value = '';
+    }
+  }), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: () => document.getElementById(id).click(),
+    style: {
+      width: '100%'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "paperclip",
+    size: 14
+  }), " Choose file from your computer")));
+}
+function AttachmentLink({
+  attachment,
+  tone = theme.accent
+}) {
+  if (!attachment) return null;
+  return /*#__PURE__*/React.createElement("a", {
+    href: attachment.url,
+    download: attachment.name,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      color: tone,
+      fontSize: 12,
+      fontWeight: 700,
+      textDecoration: 'none'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "download",
+    size: 13,
+    color: tone
+  }), " ", attachment.name, " ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: theme.textFaint,
+      fontWeight: 500
+    }
+  }, "(", fmtBytes(attachment.size), ")"));
+}
+
+/* ---------------- Login ---------------- */
+function LoginScreen({
+  users,
+  onLogin,
+  onReset
+}) {
+  const [name, setName] = useState('');
+  const [key, setKey] = useState('');
+  const [error, setError] = useState('');
+  const [confirmingReset, setConfirmingReset] = useState(false);
+  async function submit() {
+    try {
+      const user = await API.login(name, key);
+      onLogin(user);
+    } catch (e) {
+      setError(e.message || 'Name or access key not recognized.');
+    }
+  }
+  function onKey(e) {
+    if (e.key === 'Enter') submit();
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: theme.bg
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: '100%',
+      maxWidth: 380,
+      padding: '0 24px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      marginBottom: 32
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 64,
+      height: 64,
+      borderRadius: 16,
+      background: 'linear-gradient(135deg,#101B30,#1B2C46)',
+      border: `1px solid ${theme.accentBorder}`,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      boxShadow: '0 0 24px 3px rgba(255,255,255,0.16), inset 0 0 14px rgba(76,123,235,0.4)'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: '#fff',
+      fontWeight: 800,
+      fontSize: 32,
+      textShadow: '0 0 10px rgba(255,255,255,0.9), 0 0 24px rgba(255,255,255,0.55)'
+    }
+  }, "$")), /*#__PURE__*/React.createElement("h1", {
+    style: {
+      fontWeight: 800,
+      letterSpacing: '-0.01em',
+      color: theme.text,
+      fontSize: 32,
+      marginTop: 16
+    }
+  }, "Ledger"), /*#__PURE__*/React.createElement("p", {
+    style: {
+      color: theme.textDim,
+      fontSize: 13,
+      marginTop: 4,
+      fontWeight: 500
+    }
+  }, "Commission operations, kept in order.")), /*#__PURE__*/React.createElement(Panel, {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 14
+    }
+  }, /*#__PURE__*/React.createElement(Field, {
+    label: "Your name"
+  }, /*#__PURE__*/React.createElement(TextInput, {
+    value: name,
+    onChange: e => setName(e.target.value),
+    onKeyDown: onKey,
+    placeholder: "e.g. Ali Raza",
+    autoFocus: true
+  })), /*#__PURE__*/React.createElement(Field, {
+    label: "Access key"
+  }, /*#__PURE__*/React.createElement(TextInput, {
+    value: key,
+    onChange: e => setKey(e.target.value),
+    onKeyDown: onKey,
+    placeholder: "XXXX-XXXX-XXXX"
+  })), error && /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: theme.red,
+      fontSize: 12,
+      fontWeight: 600,
+      display: 'flex',
+      gap: 6,
+      alignItems: 'center'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "alert-triangle",
+    size: 14,
+    color: theme.red
+  }), " ", error), /*#__PURE__*/React.createElement(Btn, {
+    onClick: submit,
+    style: {
+      width: '100%'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "key-round",
+    size: 15
+  }), " Sign in"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: theme.textFaint,
+      fontSize: 11,
+      textAlign: 'center'
+    }
+  }, "You'll stay signed in on this computer until you sign out."))));
+}
+
+/* ---------------- TopBar ---------------- */
+function TopBar({
+  user,
+  status,
+  onActivate,
+  onDeactivate,
+  onPost,
+  onClear
+}) {
+  const isManager = user.role === 'manager';
+  const [posting, setPosting] = useState(false);
+  const [text, setText] = useState('');
+  const active = !!status.active;
+  return /*#__PURE__*/React.createElement("div", null, status.announcement && /*#__PURE__*/React.createElement("div", {
+    className: "announce",
+    style: {
+      background: 'linear-gradient(90deg,#3a2f0a,#2c2408)',
+      borderBottom: '2px solid #FFE066',
+      padding: '10px 20px',
+      display: 'grid',
+      gridTemplateColumns: '1fr auto 1fr',
+      alignItems: 'center',
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      color: '#FFE066',
+      fontSize: 13,
+      fontWeight: 800
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "megaphone",
+    size: 16,
+    color: "#FFE066"
+  }), " Notice"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: '#FFF3C4',
+      fontSize: 13.5,
+      fontWeight: 700,
+      whiteSpace: 'nowrap'
+    }
+  }, status.announcement.text), /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: 'rgba(255,224,102,.6)',
+      fontSize: 11,
+      fontWeight: 600
+    }
+  }, "— ", status.announcement.postedBy, ", ", fmtDateTime(status.announcement.postedAt)), isManager && /*#__PURE__*/React.createElement(IconBtn, {
+    icon: "x",
+    tone: "#FFE066",
+    title: "Clear",
+    onClick: onClear
+  }))), isManager && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: theme.bgSoft,
+      borderBottom: `1px solid ${theme.borderSoft}`,
+      padding: '10px 20px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 14
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 8,
+      height: 8,
+      borderRadius: 999,
+      background: active ? theme.green : theme.textFaint,
+      boxShadow: active ? `0 0 8px 2px ${theme.green}` : 'none'
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: active ? theme.green : theme.textFaint,
+      fontSize: 12,
+      fontWeight: 800,
+      textTransform: 'uppercase'
+    }
+  }, "Ledger ", active ? 'Active' : 'Inactive'), active && status.activatedBy && /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: theme.textFaint,
+      fontSize: 11,
+      fontWeight: 600
+    }
+  }, "· opened by ", status.activatedBy, " at ", fmtDateTime(status.activatedAt)), /*#__PURE__*/React.createElement(Btn, {
+    variant: active ? 'ghost' : 'success',
+    onClick: active ? onDeactivate : onActivate,
+    style: {
+      marginLeft: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "power",
+    size: 13
+  }), " ", active ? 'Close for today' : 'Open Ledger for today'), !posting ? /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: () => setPosting(true)
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "megaphone",
+    size: 13
+  }), " Post notice") : /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(TextInput, {
+    value: text,
+    onChange: e => setText(e.target.value),
+    placeholder: "e.g. Office closed tomorrow",
+    style: {
+      width: 260
+    }
+  }), /*#__PURE__*/React.createElement(Btn, {
+    onClick: () => {
+      if (!text.trim()) return;
+      onPost(text.trim());
+      setText('');
+      setPosting(false);
+    }
+  }, "Send"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: () => {
+      setPosting(false);
+      setText('');
+    }
+  }, "Cancel"))), !isManager && !active && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: theme.amberSoft,
+      borderBottom: '1px solid rgba(224,167,59,.35)',
+      padding: '9px 20px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "lock",
+    size: 13,
+    color: theme.amber
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: theme.amber,
+      fontSize: 12,
+      fontWeight: 700
+    }
+  }, "Ledger is inactive right now — a manager hasn't opened it for today yet.")));
+}
+
+/* ---------------- Sidebar ---------------- */
+function Sidebar({
+  user,
+  view,
+  setView,
+  onLogout
+}) {
+  const nav = {
+    manager: [['dashboard', 'Dashboard', 'layout-dashboard'], ['orders', 'View Orders', 'clipboard-list'], ['tasks', 'View Tasks', 'paintbrush'], ['team', 'Manage Team', 'users']],
+    employee: user.locked ? [['dashboard', 'Dashboard', 'layout-dashboard'], ['create', 'Create Order', 'plus-circle']] : [['dashboard', 'Dashboard', 'layout-dashboard'], ['create', 'Create Order', 'plus-circle'], ['orders', 'View Orders', 'clipboard-list'], ['tasks', 'View Task', 'paintbrush']],
+    artist: [['tasks', 'My Tasks', 'paintbrush']]
+  }[user.role] || [];
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 236,
+      background: theme.bgSoft,
+      borderRight: `1px solid ${theme.borderSoft}`,
+      display: 'flex',
+      flexDirection: 'column',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '22px 20px 18px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 34,
+      height: 34,
+      borderRadius: 9,
+      background: 'linear-gradient(135deg,#101B30,#1B2C46)',
+      border: `1px solid ${theme.accentBorder}`,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      boxShadow: '0 0 12px 2px rgba(255,255,255,0.2)'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: '#fff',
+      fontWeight: 800,
+      fontSize: 17,
+      textShadow: '0 0 8px rgba(255,255,255,0.85)'
+    }
+  }, "$")), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 800,
+      letterSpacing: '-0.01em',
+      color: theme.text,
+      fontSize: 20
+    }
+  }, "Ledger")), /*#__PURE__*/React.createElement(Rule, null), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '14px 12px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 3,
+      flex: 1
+    }
+  }, nav.map(([id, label, icon]) => {
+    const active = view === id;
+    return /*#__PURE__*/React.createElement("button", {
+      key: id,
+      onClick: () => setView(id),
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '10px 12px',
+        borderRadius: 8,
+        background: active ? theme.accentSoft : 'transparent',
+        border: active ? `1px solid ${theme.accentBorder}` : '1px solid transparent',
+        borderLeft: active ? `3px solid ${theme.accent}` : '3px solid transparent',
+        color: active ? theme.accent : theme.textDim,
+        fontSize: 13.5,
+        fontWeight: active ? 800 : 600,
+        cursor: 'pointer',
+        textAlign: 'left'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: icon,
+      size: 16
+    }), " ", label);
+  })), user.role === 'employee' && user.locked && /*#__PURE__*/React.createElement("div", {
+    style: {
+      margin: '0 12px 12px',
+      background: theme.amberSoft,
+      border: '1px solid rgba(224,167,59,.35)',
+      borderRadius: 8,
+      padding: 10,
+      fontSize: 11.5,
+      fontWeight: 600,
+      color: theme.amber,
+      display: 'flex',
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "lock",
+    size: 13,
+    color: theme.amber
+  }), /*#__PURE__*/React.createElement("span", null, "Portal locked until a manager confirms your first sale.")), /*#__PURE__*/React.createElement(Rule, null), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      color: theme.text,
+      fontWeight: 800
+    }
+  }, user.name), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      color: theme.textFaint,
+      fontWeight: 600,
+      marginBottom: 10
+    }
+  }, user.team, " · ", ROLE_LABEL[user.role]), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: onLogout,
+    style: {
+      width: '100%'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "log-out",
+    size: 14
+  }), " Sign out")));
+}
+
+/* ---------------- Create Order ---------------- */
+function CreateOrder({
+  user,
+  officeActive,
+  onCreated
+}) {
+  const nowLocal = () => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+  };
+  const empty = {
+    clientDiscordUsername: '',
+    clientName: '',
+    serverLink: '',
+    orderType: '2D',
+    paymentMethod: 'PayPal',
+    amount: '',
+    currency: 'USD',
+    screenshotLink: '',
+    paymentDateTime: nowLocal(),
+    notes: ''
+  };
+  const [form, setForm] = useState(empty);
+  const [file, setFile] = useState(null);
+  const [submitted, setSubmitted] = useState(false);
+  const set = (k, v) => setForm(f => ({
+    ...f,
+    [k]: v
+  }));
+  async function submit() {
+    if (!officeActive || !form.clientDiscordUsername || !form.amount) return;
+    const fd = new FormData();
+    Object.entries(form).forEach(([k, v]) => fd.append(k, v));
+    fd.append('employeeId', user.id);
+    fd.append('employeeName', user.name);
+    if (file) fd.append('screenshotFile', file);
+    await API.addOrder(fd);
+    setForm({
+      ...empty,
+      paymentDateTime: nowLocal()
+    });
+    setFile(null);
+    setSubmitted(true);
+    onCreated();
+    setTimeout(() => setSubmitted(false), 2500);
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: 640
+    }
+  }, /*#__PURE__*/React.createElement("h2", {
+    style: {
+      fontWeight: 800,
+      letterSpacing: '-0.01em',
+      color: theme.text,
+      fontSize: 25,
+      marginBottom: 4
+    }
+  }, "Create order"), /*#__PURE__*/React.createElement("p", {
+    style: {
+      color: theme.textDim,
+      fontSize: 13,
+      fontWeight: 500,
+      marginBottom: 22
+    }
+  }, "Log a new commission you closed on Discord. It goes to any manager for payment approval."), /*#__PURE__*/React.createElement(Panel, {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 18
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 16
+    }
+  }, /*#__PURE__*/React.createElement(Field, {
+    label: "Client's Discord username"
+  }, /*#__PURE__*/React.createElement(TextInput, {
+    value: form.clientDiscordUsername,
+    onChange: e => set('clientDiscordUsername', e.target.value),
+    placeholder: "e.g. shadow.art"
+  })), /*#__PURE__*/React.createElement(Field, {
+    label: "Client's display name"
+  }, /*#__PURE__*/React.createElement(TextInput, {
+    value: form.clientName,
+    onChange: e => set('clientName', e.target.value),
+    placeholder: "e.g. Ahmed"
+  }))), /*#__PURE__*/React.createElement(Field, {
+    label: "Discord server link",
+    hint: "Server where the client was reached / pitched"
+  }, /*#__PURE__*/React.createElement(TextInput, {
+    value: form.serverLink,
+    onChange: e => set('serverLink', e.target.value),
+    placeholder: "https://discord.gg/..."
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 16
+    }
+  }, /*#__PURE__*/React.createElement(Field, {
+    label: "Commission type"
+  }, /*#__PURE__*/React.createElement(Select, {
+    value: form.orderType,
+    onChange: e => set('orderType', e.target.value)
+  }, ORDER_TYPES.map(t => /*#__PURE__*/React.createElement("option", {
+    key: t,
+    value: t
+  }, t)))), /*#__PURE__*/React.createElement(Field, {
+    label: "Payment method"
+  }, /*#__PURE__*/React.createElement(Select, {
+    value: form.paymentMethod,
+    onChange: e => set('paymentMethod', e.target.value)
+  }, PAYMENT_METHODS.map(m => /*#__PURE__*/React.createElement("option", {
+    key: m,
+    value: m
+  }, m))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 16
+    }
+  }, /*#__PURE__*/React.createElement(Field, {
+    label: "Total sale / transaction amount"
+  }, /*#__PURE__*/React.createElement(TextInput, {
+    type: "number",
+    min: "0",
+    step: "0.01",
+    value: form.amount,
+    onChange: e => set('amount', e.target.value),
+    placeholder: "0.00"
+  })), /*#__PURE__*/React.createElement(Field, {
+    label: "Currency"
+  }, /*#__PURE__*/React.createElement(Select, {
+    value: form.currency,
+    onChange: e => set('currency', e.target.value)
+  }, CURRENCIES.map(c => /*#__PURE__*/React.createElement("option", {
+    key: c,
+    value: c
+  }, c))))), /*#__PURE__*/React.createElement(Field, {
+    label: "Payment date & time"
+  }, /*#__PURE__*/React.createElement(TextInput, {
+    type: "datetime-local",
+    value: form.paymentDateTime,
+    onChange: e => set('paymentDateTime', e.target.value)
+  })), /*#__PURE__*/React.createElement(FileField, {
+    label: "Payment screenshot",
+    hint: "Attach directly from your PC",
+    file: file,
+    onPick: setFile,
+    onClear: () => setFile(null)
+  }), /*#__PURE__*/React.createElement(Field, {
+    label: "…or a screenshot / invoice link instead"
+  }, /*#__PURE__*/React.createElement(TextInput, {
+    value: form.screenshotLink,
+    onChange: e => set('screenshotLink', e.target.value),
+    placeholder: "https://..."
+  })), /*#__PURE__*/React.createElement(Field, {
+    label: "Commission details"
+  }, /*#__PURE__*/React.createElement(TextArea, {
+    value: form.notes,
+    onChange: e => set('notes', e.target.value),
+    placeholder: "Style, subject, references, deadline..."
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    onClick: submit,
+    disabled: !officeActive
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "plus-circle",
+    size: 15
+  }), " Submit order"), submitted && /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: theme.green,
+      fontSize: 13,
+      fontWeight: 700
+    }
+  }, "Order sent for approval ✓"), !officeActive && /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: theme.amber,
+      fontSize: 12.5,
+      fontWeight: 700,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 5
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "lock",
+    size: 13
+  }), " Waiting for a manager to open Ledger for today"))));
+}
+
+/* ---------------- Attach Task Form ---------------- */
+function AttachTaskForm({
+  onSubmit,
+  onCancel
+}) {
+  const [file, setFile] = useState(null);
+  const [deadline, setDeadline] = useState('');
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: theme.bgSoft,
+      border: `1px solid ${theme.borderSoft}`,
+      borderRadius: 10,
+      padding: 14,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 12,
+      marginTop: 4
+    }
+  }, /*#__PURE__*/React.createElement(FileField, {
+    label: "Commission brief / reference file",
+    hint: "Attach from your PC",
+    file: file,
+    onPick: setFile,
+    onClear: () => setFile(null)
+  }), /*#__PURE__*/React.createElement(Field, {
+    label: "Deadline (optional)"
+  }, /*#__PURE__*/React.createElement(TextInput, {
+    type: "date",
+    value: deadline,
+    onChange: e => setDeadline(e.target.value)
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    disabled: !file,
+    onClick: () => onSubmit({
+      file,
+      deadline
+    })
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "send",
+    size: 14
+  }), " Attach task"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: onCancel
+  }, "Cancel")));
+}
+
+/* ---------------- Orders View ---------------- */
+function OrdersView({
+  user,
+  orders,
+  tasks,
+  users,
+  refresh
+}) {
+  const [filter, setFilter] = useState('all');
+  const [expanded, setExpanded] = useState(null);
+  const [assignId, setAssignId] = useState(null);
+  const isApprover = user.role === 'manager';
+  const scoped = isApprover ? orders : orders.filter(o => o.employeeId === user.id);
+  const filtered = filter === 'all' ? scoped : scoped.filter(o => o.status === filter);
+  const sorted = [...filtered].sort((a, b) => b.createdAt - a.createdAt);
+  const badgeTone = {
+    pending: 'pending',
+    verified: 'verified',
+    rejected: 'rejected'
+  };
+  async function attach(orderId, {
+    file,
+    deadline
+  }) {
+    const fd = new FormData();
+    fd.append('deadline', deadline);
+    if (file) fd.append('file', file);
+    await API.attachTask(orderId, fd);
+    setAssignId(null);
+    refresh();
+  }
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 20
+    }
+  }, /*#__PURE__*/React.createElement("h2", {
+    style: {
+      fontWeight: 800,
+      letterSpacing: '-0.01em',
+      color: theme.text,
+      fontSize: 25
+    }
+  }, isApprover ? 'View orders' : 'My orders'), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8
+    }
+  }, ['all', 'pending', 'verified', 'rejected'].map(f => /*#__PURE__*/React.createElement("button", {
+    key: f,
+    onClick: () => setFilter(f),
+    className: "btn",
+    style: {
+      padding: '7px 13px',
+      borderRadius: 999,
+      fontSize: 12,
+      fontWeight: 700,
+      background: filter === f ? theme.accentSoft : 'transparent',
+      color: filter === f ? theme.accent : theme.textDim,
+      border: `1px solid ${filter === f ? theme.accentBorder : theme.border}`,
+      textTransform: 'capitalize'
+    }
+  }, f)))), isApprover && /*#__PURE__*/React.createElement("p", {
+    style: {
+      color: theme.textFaint,
+      fontSize: 12,
+      fontWeight: 600,
+      marginBottom: 14
+    }
+  }, "Shared pool — any manager can approve, reject, or unlock any employee below."), sorted.length === 0 && /*#__PURE__*/React.createElement(Panel, null, /*#__PURE__*/React.createElement("p", {
+    style: {
+      color: theme.textFaint,
+      fontSize: 13,
+      textAlign: 'center'
+    }
+  }, "No orders here yet.")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 12
+    }
+  }, sorted.map(o => {
+    const isOpen = expanded === o.id;
+    const task = tasks.find(t => t.orderId === o.id);
+    const employee = users.find(u => u.id === o.employeeId);
+    return /*#__PURE__*/React.createElement(NeonPanel, {
+      key: o.id,
+      style: {
+        padding: 0,
+        overflow: 'hidden'
+      }
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: () => setExpanded(isOpen ? null : o.id),
+      className: "row",
+      style: {
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '15px 18px',
+        background: 'transparent',
+        border: 'none',
+        cursor: 'pointer',
+        textAlign: 'left'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12
+      }
+    }, /*#__PURE__*/React.createElement(Badge, {
+      tone: "accent"
+    }, o.orderType), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: theme.text,
+        fontSize: 14,
+        fontWeight: 800
+      }
+    }, o.clientName || o.clientDiscordUsername), /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: theme.textFaint,
+        fontSize: 11.5,
+        fontWeight: 600
+      }
+    }, "@", o.clientDiscordUsername, " · via ", o.employeeName, " · ", fmtDate(o.createdAt)))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "mono",
+      style: {
+        color: theme.gold,
+        fontSize: 14
+      }
+    }, money(o.amount, o.currency)), /*#__PURE__*/React.createElement(Badge, {
+      tone: badgeTone[o.status]
+    }, o.status), /*#__PURE__*/React.createElement(Icon, {
+      name: isOpen ? 'chevron-up' : 'chevron-down',
+      size: 16,
+      color: theme.textFaint
+    }))), isOpen && /*#__PURE__*/React.createElement("div", {
+      style: {
+        borderTop: `1px solid ${theme.borderSoft}`,
+        padding: 18
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: '8px 32px',
+        fontSize: 13,
+        color: theme.textDim,
+        fontWeight: 600,
+        marginBottom: 12
+      }
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: theme.textFaint
+      }
+    }, "Server: "), o.serverLink ? /*#__PURE__*/React.createElement("a", {
+      href: o.serverLink,
+      target: "_blank",
+      style: {
+        color: theme.accent
+      }
+    }, o.serverLink) : '—'), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: theme.textFaint
+      }
+    }, "Payment method: "), o.paymentMethod), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: theme.textFaint
+      }
+    }, "Payment date/time: "), o.paymentDateTime ? new Date(o.paymentDateTime).toLocaleString() : '—'), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: theme.textFaint
+      }
+    }, "Screenshot: "), o.screenshotAttachment ? /*#__PURE__*/React.createElement(AttachmentLink, {
+      attachment: o.screenshotAttachment
+    }) : o.screenshotLink ? /*#__PURE__*/React.createElement("a", {
+      href: o.screenshotLink,
+      target: "_blank",
+      style: {
+        color: theme.accent
+      }
+    }, "view link") : '—'), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: theme.textFaint
+      }
+    }, "Employee: "), o.employeeName), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: theme.textFaint
+      }
+    }, "Amount: "), /*#__PURE__*/React.createElement("span", {
+      className: "mono",
+      style: {
+        color: theme.gold
+      }
+    }, money(o.amount, o.currency)))), o.notes && /*#__PURE__*/React.createElement("div", {
+      style: {
+        background: theme.bgSoft,
+        border: `1px solid ${theme.borderSoft}`,
+        borderRadius: 8,
+        padding: 12,
+        fontSize: 13,
+        color: theme.textDim,
+        fontWeight: 500,
+        marginBottom: 12
+      }
+    }, o.notes), isApprover && o.status === 'pending' && /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: 8
+      }
+    }, /*#__PURE__*/React.createElement(Btn, {
+      variant: "success",
+      onClick: async () => {
+        await API.verifyOrder(o.id);
+        refresh();
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "check-circle-2",
+      size: 14
+    }), " Approve payment"), /*#__PURE__*/React.createElement(Btn, {
+      variant: "danger",
+      onClick: async () => {
+        await API.rejectOrder(o.id);
+        refresh();
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "x-circle",
+      size: 14
+    }), " Reject")), isApprover && o.status === 'verified' && !task && /*#__PURE__*/React.createElement("p", {
+      style: {
+        color: theme.textFaint,
+        fontSize: 12.5,
+        fontWeight: 600
+      }
+    }, "Approved — waiting on ", o.employeeName, " to attach a task."), !isApprover && o.status === 'verified' && !task && (assignId === o.id ? /*#__PURE__*/React.createElement(AttachTaskForm, {
+      onCancel: () => setAssignId(null),
+      onSubmit: d => attach(o.id, d)
+    }) : /*#__PURE__*/React.createElement(Btn, {
+      onClick: () => setAssignId(o.id)
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "paperclip",
+      size: 14
+    }), " Add task attachment")), task && /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 10,
+        fontSize: 12.5,
+        color: theme.textDim,
+        fontWeight: 600
+      }
+    }, "Task status: ", /*#__PURE__*/React.createElement(Badge, {
+      tone: task.status === 'completed' ? 'verified' : 'accent'
+    }, task.status.replace('_', ' '))), isApprover && employee?.role === 'employee' && employee.locked && /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 14,
+        borderTop: `1px dashed ${theme.borderSoft}`,
+        paddingTop: 12,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: theme.amber,
+        fontSize: 12,
+        fontWeight: 700,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "lock",
+      size: 13
+    }), " ", employee.name, "'s portal is still locked"), /*#__PURE__*/React.createElement(Btn, {
+      variant: "gold",
+      onClick: async () => {
+        await API.unlockUser(employee.id);
+        refresh();
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "unlock",
+      size: 14
+    }), " Unlock portal"))));
+  })));
+}
+
+/* ---------------- Feedback / Revision forms ---------------- */
+function FeedbackForm({
+  onSubmit,
+  onCancel
+}) {
+  const [file, setFile] = useState(null);
+  const [note, setNote] = useState('');
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: theme.surface2,
+      borderRadius: 8,
+      padding: 10,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8,
+      marginTop: 8
+    }
+  }, /*#__PURE__*/React.createElement(FileField, {
+    label: "Feedback file (optional)",
+    hint: "Marked-up screenshot or notes",
+    file: file,
+    onPick: setFile,
+    onClear: () => setFile(null),
+    accent: theme.amber
+  }), /*#__PURE__*/React.createElement(Field, {
+    label: "What needs to change"
+  }, /*#__PURE__*/React.createElement(TextArea, {
+    value: note,
+    onChange: e => setNote(e.target.value),
+    placeholder: "e.g. Client wants hair color changed to blue"
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    disabled: !note && !file,
+    onClick: () => onSubmit({
+      file,
+      note
+    })
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "message-square-plus",
+    size: 14
+  }), " Send to artist"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: onCancel
+  }, "Cancel")));
+}
+function RevisionForm({
+  onAddRevision,
+  onComplete
+}) {
+  const [file, setFile] = useState(null);
+  const [note, setNote] = useState('');
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      borderTop: `1px dashed ${theme.borderSoft}`,
+      paddingTop: 14,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement(FileField, {
+    label: "Draft / artwork file",
+    hint: "Attach from your PC",
+    file: file,
+    onPick: setFile,
+    onClear: () => setFile(null),
+    accent: theme.gold
+  }), /*#__PURE__*/React.createElement(Field, {
+    label: "Note (optional)"
+  }, /*#__PURE__*/React.createElement(TextInput, {
+    value: note,
+    onChange: e => setNote(e.target.value),
+    placeholder: "e.g. First lineart pass"
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    disabled: !file,
+    onClick: () => {
+      onAddRevision({
+        file,
+        note
+      });
+      setFile(null);
+      setNote('');
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "link",
+    size: 14
+  }), " Send revision"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "success",
+    onClick: onComplete
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "check-check",
+    size: 14
+  }), " Mark task complete")));
+}
+
+/* ---------------- Task board (employee/manager) ---------------- */
+function TaskCard({
+  task,
+  order,
+  interactive,
+  canApprove,
+  onApprove,
+  onDelete,
+  onRestore,
+  onRequestRevision,
+  onComplete
+}) {
+  const [open, setOpen] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const idle = daysSince(task.lastUpdated);
+  const overdue = idle !== null && idle >= 2 && !task.deleted && task.status !== 'completed';
+  const latest = task.revisions[task.revisions.length - 1];
+  const col = columnOf(task);
+  const needsApproval = !task.approved && !task.deleted;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: theme.bgSoft,
+      border: `1px solid ${needsApproval ? 'rgba(214,173,96,.6)' : overdue ? 'rgba(224,167,59,.5)' : theme.borderSoft}`,
+      borderRadius: 10,
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'stretch'
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setOpen(o => !o),
+    style: {
+      flex: 1,
+      minWidth: 0,
+      textAlign: 'left',
+      background: 'transparent',
+      border: 'none',
+      cursor: 'pointer',
+      padding: '13px 8px 13px 14px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 9
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0,
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: theme.text,
+      fontSize: 13.5,
+      fontWeight: 800,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }, order?.clientName || order?.clientDiscordUsername || 'Unknown client'), /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: theme.textFaint,
+      fontSize: 11,
+      fontWeight: 600,
+      marginTop: 2
+    }
+  }, order?.orderType, " · via ", order?.employeeName)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "mono",
+    style: {
+      color: theme.gold,
+      fontSize: 12.5
+    }
+  }, order ? money(order.amount, order.currency) : ''), /*#__PURE__*/React.createElement(Icon, {
+    name: open ? 'chevron-up' : 'chevron-down',
+    size: 14,
+    color: theme.textFaint
+  }))), needsApproval && col === 'pending' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: theme.gold,
+      fontSize: 11,
+      fontWeight: 800,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 4
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "shield-check",
+    size: 12,
+    color: theme.gold
+  }), " Awaiting manager approval"), !needsApproval && col === 'pending' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: overdue ? theme.amber : theme.textFaint,
+      fontSize: 11,
+      fontWeight: 700,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 4
+    }
+  }, overdue && /*#__PURE__*/React.createElement(Icon, {
+    name: "alert-triangle",
+    size: 12,
+    color: theme.amber
+  }), " Next update due: ", fmtDate(task.lastUpdated + 2 * 86400000)), col === 'submitted' && latest && /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: theme.gold,
+      fontSize: 11,
+      fontWeight: 700
+    }
+  }, "Tap to review the latest submission"), col === 'completed' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: theme.green,
+      fontSize: 11,
+      fontWeight: 700
+    }
+  }, "Completed ", fmtDate(task.lastUpdated))), interactive && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      paddingTop: 10,
+      paddingRight: 8
+    }
+  }, col === 'deleted' ? /*#__PURE__*/React.createElement(IconBtn, {
+    icon: "rotate-ccw",
+    tone: theme.accent,
+    title: "Restore",
+    onClick: () => onRestore(task.id)
+  }) : /*#__PURE__*/React.createElement(IconBtn, {
+    icon: "trash-2",
+    tone: theme.red,
+    title: "Delete",
+    onClick: () => onDelete(task.id)
+  }))), open && /*#__PURE__*/React.createElement("div", {
+    style: {
+      borderTop: `1px dashed ${theme.borderSoft}`,
+      padding: 14,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 12
+    }
+  }, canApprove && needsApproval && /*#__PURE__*/React.createElement(Btn, {
+    variant: "gold",
+    onClick: () => onApprove(task.id),
+    style: {
+      width: '100%'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "thumbs-up",
+    size: 14
+  }), " Approve this task for the artist"), task.attachment && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: theme.textFaint,
+      fontSize: 10.5,
+      fontWeight: 800,
+      marginBottom: 5
+    }
+  }, "ORIGINAL BRIEF"), /*#__PURE__*/React.createElement(AttachmentLink, {
+    attachment: task.attachment
+  })), task.deadline && col !== 'completed' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: theme.textFaint,
+      fontSize: 11,
+      fontWeight: 600
+    }
+  }, "Deadline: ", fmtDate(new Date(task.deadline).getTime())), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: theme.textFaint,
+      fontSize: 10.5,
+      fontWeight: 800,
+      marginBottom: 7
+    }
+  }, "HISTORY"), task.revisions.length === 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: theme.textFaint,
+      fontSize: 11.5
+    }
+  }, "No activity yet."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8
+    }
+  }, labelRevisions(task.revisions).map(r => /*#__PURE__*/React.createElement("div", {
+    key: r.id,
+    style: {
+      background: theme.surface2,
+      borderRadius: 8,
+      padding: 10,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr auto',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: r.role === 'employee' ? theme.amber : theme.accent,
+      fontSize: 12,
+      fontWeight: 800
+    }
+  }, r.label), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: theme.textFaint,
+      fontSize: 10.5,
+      fontWeight: 600,
+      whiteSpace: 'nowrap'
+    }
+  }, fmtDate(r.date), r.by ? ' · ' + r.by : '')), r.attachment ? /*#__PURE__*/React.createElement(AttachmentLink, {
+    attachment: r.attachment,
+    tone: r.role === 'employee' ? theme.amber : theme.gold
+  }) : /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: theme.textFaint,
+      fontSize: 11
+    }
+  }, "No file"), r.note && /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: theme.textDim,
+      fontWeight: 500,
+      fontSize: 11.5
+    }
+  }, r.note))))), interactive && col === 'submitted' && (showFeedback ? /*#__PURE__*/React.createElement(FeedbackForm, {
+    onCancel: () => setShowFeedback(false),
+    onSubmit: d => {
+      onRequestRevision(task.id, d);
+      setShowFeedback(false);
+      setOpen(false);
+    }
+  }) : /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    onClick: () => setShowFeedback(true),
+    style: {
+      width: '100%'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "pen-line",
+    size: 14
+  }), " Create revision"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "success",
+    onClick: () => onComplete(task.id),
+    style: {
+      width: '100%'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "check-check",
+    size: 14
+  }), " Approve & complete")))));
+}
+function TaskBoard({
+  tasks,
+  orders,
+  interactive,
+  canApprove,
+  onApprove,
+  onDelete,
+  onRestore,
+  onRequestRevision,
+  onComplete
+}) {
+  const byCol = useMemo(() => {
+    const m = {
+      pending: [],
+      submitted: [],
+      completed: [],
+      deleted: []
+    };
+    [...tasks].sort((a, b) => b.lastUpdated - a.lastUpdated).forEach(t => m[columnOf(t)].push(t));
+    return m;
+  }, [tasks]);
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(4,1fr)',
+      gap: 16
+    }
+  }, TASK_COLUMNS.map(col => /*#__PURE__*/React.createElement("div", {
+    key: col.key,
+    className: "neon"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "neon-inner"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '14px 14px 12px',
+      borderBottom: `1px solid ${theme.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: col.icon,
+    size: 13,
+    color: col.color
+  }), /*#__PURE__*/React.createElement("h3", {
+    style: {
+      color: theme.text,
+      fontSize: 12.5,
+      fontWeight: 800,
+      textTransform: 'uppercase',
+      letterSpacing: '.05em'
+    }
+  }, col.label), /*#__PURE__*/React.createElement("span", {
+    style: {
+      marginLeft: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement(Badge, {
+    tone: "neutral"
+  }, byCol[col.key].length))), /*#__PURE__*/React.createElement("p", {
+    style: {
+      color: theme.textFaint,
+      fontSize: 10.5,
+      fontWeight: 500,
+      marginTop: 5
+    }
+  }, col.hint)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 10,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 9,
+      maxHeight: 'calc(100vh - 300px)',
+      minHeight: 160,
+      overflowY: 'auto',
+      flex: 1
+    }
+  }, byCol[col.key].length === 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px dashed ${theme.borderSoft}`,
+      borderRadius: 10,
+      padding: '18px 10px',
+      textAlign: 'center',
+      color: theme.textFaint,
+      fontSize: 11
+    }
+  }, "Empty"), byCol[col.key].map(t => /*#__PURE__*/React.createElement(TaskCard, {
+    key: t.id,
+    task: t,
+    order: orders.find(o => o.id === t.orderId),
+    interactive: interactive,
+    canApprove: canApprove,
+    onApprove: onApprove,
+    onDelete: onDelete,
+    onRestore: onRestore,
+    onRequestRevision: onRequestRevision,
+    onComplete: onComplete
+  })))))));
+}
+
+/* ---------------- Tasks View ---------------- */
+function TasksView({
+  user,
+  tasks,
+  orders,
+  users,
+  refresh
+}) {
+  const isManager = user.role === 'manager';
+  const isArtist = user.role === 'artist';
+  const [expanded, setExpanded] = useState(null);
+  async function addRevision(taskId, {
+    file,
+    note
+  }, role) {
+    const fd = new FormData();
+    fd.append('note', note || '');
+    fd.append('by', user.name);
+    fd.append('role', role);
+    if (file) fd.append('file', file);
+    await API.addRevision(taskId, fd);
+    refresh();
+  }
+  async function requestRevision(taskId, {
+    file,
+    note
+  }) {
+    await addRevision(taskId, {
+      file,
+      note
+    }, 'employee');
+  }
+  async function complete(taskId) {
+    await API.setTaskStatus(taskId, 'completed');
+    refresh();
+  }
+  async function approve(taskId) {
+    await API.approveTask(taskId);
+    refresh();
+  }
+  async function del(taskId) {
+    await API.deleteTask(taskId);
+    refresh();
+  }
+  async function restore(taskId) {
+    await API.restoreTask(taskId);
+    refresh();
+  }
+  if (isArtist) {
+    const scoped = [...tasks.filter(t => !t.deleted && t.approved)].sort((a, b) => b.createdAt - a.createdAt);
+    return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h2", {
+      style: {
+        fontWeight: 800,
+        letterSpacing: '-0.01em',
+        color: theme.text,
+        fontSize: 25,
+        marginBottom: 4
+      }
+    }, "My tasks"), /*#__PURE__*/React.createElement("p", {
+      style: {
+        color: theme.textDim,
+        fontSize: 13,
+        fontWeight: 500,
+        marginBottom: 20
+      }
+    }, "Open commissions — pick any up, send drafts, and mark them complete when done."), scoped.length === 0 && /*#__PURE__*/React.createElement(Panel, null, /*#__PURE__*/React.createElement("p", {
+      style: {
+        color: theme.textFaint,
+        fontSize: 13,
+        textAlign: 'center'
+      }
+    }, "Nothing here yet.")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12
+      }
+    }, scoped.map(t => {
+      const order = orders.find(o => o.id === t.orderId);
+      const teamLabel = (users || []).find(u => u.id === order?.employeeId)?.team || 'Unassigned';
+      const isOpen = expanded === t.id;
+      const idle = daysSince(t.lastUpdated);
+      const overdue = idle !== null && idle >= 2 && t.status !== 'completed';
+      return /*#__PURE__*/React.createElement(Panel, {
+        key: t.id,
+        style: {
+          padding: 0,
+          overflow: 'hidden',
+          borderColor: overdue ? 'rgba(224,167,59,.5)' : theme.borderSoft
+        }
+      }, /*#__PURE__*/React.createElement("button", {
+        onClick: () => setExpanded(isOpen ? null : t.id),
+        className: "row",
+        style: {
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '15px 18px',
+          background: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          textAlign: 'left'
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12
+        }
+      }, /*#__PURE__*/React.createElement(Badge, {
+        tone: "accent"
+      }, order?.orderType || '—'), /*#__PURE__*/React.createElement(Badge, {
+        tone: "neutral"
+      }, teamLabel), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+        style: {
+          color: theme.text,
+          fontSize: 14,
+          fontWeight: 800
+        }
+      }, "Commission #", t.id.slice(-5)), /*#__PURE__*/React.createElement("div", {
+        style: {
+          color: theme.textFaint,
+          fontSize: 11.5,
+          fontWeight: 600
+        }
+      }, "updated ", fmtDateTime(t.lastUpdated)))), /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12
+        }
+      }, overdue && /*#__PURE__*/React.createElement("span", {
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+          color: theme.amber,
+          fontSize: 11.5,
+          fontWeight: 700
+        }
+      }, /*#__PURE__*/React.createElement(Icon, {
+        name: "alert-triangle",
+        size: 13,
+        color: theme.amber
+      }), " idle ", idle, "d"), /*#__PURE__*/React.createElement(Badge, {
+        tone: t.status === 'completed' ? 'verified' : 'accent'
+      }, t.status.replace('_', ' ')), /*#__PURE__*/React.createElement(Icon, {
+        name: isOpen ? 'chevron-up' : 'chevron-down',
+        size: 16,
+        color: theme.textFaint
+      }))), isOpen && /*#__PURE__*/React.createElement("div", {
+        style: {
+          borderTop: `1px solid ${theme.borderSoft}`,
+          padding: 18
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '8px 32px',
+          fontSize: 13,
+          color: theme.textDim,
+          fontWeight: 600,
+          marginBottom: 12
+        }
+      }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", {
+        style: {
+          color: theme.textFaint
+        }
+      }, "Deadline: "), t.deadline ? fmtDate(new Date(t.deadline).getTime()) : 'None set'), /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          color: theme.textFaint
+        }
+      }, "Brief: "), t.attachment ? /*#__PURE__*/React.createElement(AttachmentLink, {
+        attachment: t.attachment
+      }) : '—')), order?.notes && /*#__PURE__*/React.createElement("div", {
+        style: {
+          background: theme.bgSoft,
+          border: `1px solid ${theme.borderSoft}`,
+          borderRadius: 8,
+          padding: 12,
+          fontSize: 13,
+          color: theme.textDim,
+          fontWeight: 500,
+          marginBottom: 14
+        }
+      }, order.notes), /*#__PURE__*/React.createElement("div", {
+        style: {
+          marginBottom: 14
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          color: theme.textFaint,
+          fontSize: 11.5,
+          fontWeight: 800,
+          marginBottom: 8
+        }
+      }, "REVISION HISTORY"), t.revisions.length === 0 && /*#__PURE__*/React.createElement("div", {
+        style: {
+          color: theme.textFaint,
+          fontSize: 12.5
+        }
+      }, "No drafts sent yet."), /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8
+        }
+      }, labelRevisions(t.revisions).map(r => /*#__PURE__*/React.createElement("div", {
+        key: r.id,
+        style: {
+          background: theme.surface2,
+          borderRadius: 7,
+          padding: 9
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'grid',
+          gridTemplateColumns: '1fr auto',
+          alignItems: 'center',
+          gap: 8,
+          marginBottom: 4
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          color: r.role === 'employee' ? theme.amber : theme.accent,
+          fontSize: 12.5,
+          fontWeight: 800
+        }
+      }, r.role === 'employee' ? 'Client feedback' : r.label), /*#__PURE__*/React.createElement("span", {
+        style: {
+          color: theme.textFaint,
+          fontSize: 10.5,
+          fontWeight: 600,
+          whiteSpace: 'nowrap'
+        }
+      }, fmtDate(r.date))), r.attachment ? /*#__PURE__*/React.createElement(AttachmentLink, {
+        attachment: r.attachment,
+        tone: r.role === 'employee' ? theme.amber : theme.gold
+      }) : /*#__PURE__*/React.createElement("span", {
+        style: {
+          color: theme.textFaint,
+          fontSize: 11
+        }
+      }, "No file"), r.note && /*#__PURE__*/React.createElement("div", {
+        style: {
+          color: theme.textDim,
+          marginTop: 4,
+          fontWeight: 500,
+          fontSize: 11.5
+        }
+      }, r.note))))), t.status !== 'completed' && /*#__PURE__*/React.createElement(RevisionForm, {
+        onAddRevision: d => addRevision(t.id, d, 'artist'),
+        onComplete: () => complete(t.id)
+      })));
+    })));
+  }
+  const scoped = isManager ? tasks : tasks.filter(t => orders.find(o => o.id === t.orderId)?.employeeId === user.id);
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h2", {
+    style: {
+      fontWeight: 800,
+      letterSpacing: '-0.01em',
+      color: theme.text,
+      fontSize: 25,
+      marginBottom: 4
+    }
+  }, "View tasks"), /*#__PURE__*/React.createElement("p", {
+    style: {
+      color: theme.textDim,
+      fontSize: 13,
+      fontWeight: 500,
+      marginBottom: 20
+    }
+  }, isManager ? 'Approve new tasks before artists can see them, and keep an eye on everything in production.' : 'Click a card to review submissions, request another revision, or approve and complete.'), scoped.length === 0 ? /*#__PURE__*/React.createElement(Panel, null, /*#__PURE__*/React.createElement("p", {
+    style: {
+      color: theme.textFaint,
+      fontSize: 13,
+      textAlign: 'center'
+    }
+  }, "Nothing here yet.")) : /*#__PURE__*/React.createElement(TaskBoard, {
+    tasks: scoped,
+    orders: orders,
+    interactive: !isManager,
+    canApprove: isManager,
+    onApprove: approve,
+    onDelete: del,
+    onRestore: restore,
+    onRequestRevision: requestRevision,
+    onComplete: complete
+  }));
+}
+
+/* ---------------- Manage Team ---------------- */
+function ManageTeam({
+  user,
+  users,
+  orders,
+  refresh
+}) {
+  const empty = {
+    name: '',
+    role: 'employee',
+    team: ''
+  };
+  const [form, setForm] = useState(empty);
+  const [copiedId, setCopiedId] = useState(null);
+  const [confirmRegenId, setConfirmRegenId] = useState(null);
+  async function submit() {
+    if (!form.name || !form.team) return;
+    await API.addUser(form);
+    setForm(empty);
+    refresh();
+  }
+  function copy(u) {
+    navigator.clipboard?.writeText(`Name: ${u.name}\nKey: ${u.key}`).catch(() => {});
+    setCopiedId(u.id);
+    setTimeout(() => setCopiedId(null), 1500);
+  }
+  function hasVerifiedSale(id) {
+    return orders.some(o => o.employeeId === id && o.status === 'verified');
+  }
+  const managerCount = users.filter(u => u.role === 'manager').length;
+  function canRemove(t) {
+    if (t.id === user.id) return false;
+    if (t.role === 'manager' && managerCount <= 1) return false;
+    return true;
+  }
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h2", {
+    style: {
+      fontWeight: 800,
+      letterSpacing: '-0.01em',
+      color: theme.text,
+      fontSize: 25,
+      marginBottom: 4
+    }
+  }, "Manage team"), /*#__PURE__*/React.createElement("p", {
+    style: {
+      color: theme.textDim,
+      fontSize: 13,
+      fontWeight: 500,
+      marginBottom: 20
+    }
+  }, "New hire? Add them below — Ledger generates their access key automatically."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 2fr',
+      gap: 20
+    }
+  }, /*#__PURE__*/React.createElement(Panel, {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 12,
+      alignSelf: 'flex-start'
+    }
+  }, /*#__PURE__*/React.createElement(Field, {
+    label: "Name"
+  }, /*#__PURE__*/React.createElement(TextInput, {
+    value: form.name,
+    onChange: e => setForm(f => ({
+      ...f,
+      name: e.target.value
+    })),
+    placeholder: "Full name"
+  })), /*#__PURE__*/React.createElement(Field, {
+    label: "Role"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3,1fr)',
+      gap: 8
+    }
+  }, [['employee', 'Employee', 'Sales'], ['artist', 'Artist', 'Designer'], ['manager', 'Manager', 'Admin']].map(([id, label, sub]) => /*#__PURE__*/React.createElement("button", {
+    key: id,
+    onClick: () => setForm(f => ({
+      ...f,
+      role: id
+    })),
+    className: "btn",
+    style: {
+      padding: '10px 6px',
+      borderRadius: 8,
+      textAlign: 'center',
+      background: form.role === id ? theme.accentSoft : theme.bgSoft,
+      border: `1px solid ${form.role === id ? theme.accentBorder : theme.border}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: form.role === id ? theme.accent : theme.text,
+      fontSize: 12.5,
+      fontWeight: 800
+    }
+  }, label), /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: theme.textFaint,
+      fontSize: 10.5,
+      fontWeight: 600
+    }
+  }, sub))))), /*#__PURE__*/React.createElement(Field, {
+    label: "Team",
+    hint: "e.g. Team Hunain"
+  }, /*#__PURE__*/React.createElement(TextInput, {
+    value: form.team,
+    onChange: e => setForm(f => ({
+      ...f,
+      team: e.target.value
+    })),
+    placeholder: "e.g. Team Hunain"
+  })), /*#__PURE__*/React.createElement(Btn, {
+    onClick: submit
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "user-plus",
+    size: 14
+  }), " Add member")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 10
+    }
+  }, users.map(u => {
+    const eligible = u.role === 'employee' && u.locked && hasVerifiedSale(u.id);
+    return /*#__PURE__*/React.createElement(Panel, {
+      key: u.id,
+      style: {
+        padding: '13px 16px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 34,
+        height: 34,
+        borderRadius: 9,
+        background: theme.accentSoft,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: theme.accent,
+        fontWeight: 800,
+        fontSize: 13
+      }
+    }, u.name.slice(0, 1).toUpperCase()), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: theme.text,
+        fontSize: 13.5,
+        fontWeight: 800,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6
+      }
+    }, u.name, u.role === 'employee' && (u.locked ? /*#__PURE__*/React.createElement("span", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 3,
+        color: theme.amber,
+        fontSize: 11,
+        fontWeight: 700
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "lock",
+      size: 11,
+      color: theme.amber
+    }), " locked") : /*#__PURE__*/React.createElement("span", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 3,
+        color: theme.green,
+        fontSize: 11,
+        fontWeight: 700
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "unlock",
+      size: 11,
+      color: theme.green
+    }), " active"))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: theme.textFaint,
+        fontSize: 11.5,
+        fontWeight: 600
+      }
+    }, u.team, " · ", ROLE_LABEL[u.role]))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8
+      }
+    }, eligible && /*#__PURE__*/React.createElement(Btn, {
+      variant: "gold",
+      onClick: async () => {
+        await API.unlockUser(u.id);
+        refresh();
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "unlock",
+      size: 13
+    }), " Unlock"), /*#__PURE__*/React.createElement("span", {
+      className: "mono",
+      style: {
+        color: theme.textDim,
+        fontSize: 12,
+        background: theme.bgSoft,
+        border: `1px solid ${theme.borderSoft}`,
+        borderRadius: 6,
+        padding: '4px 8px'
+      }
+    }, u.key), /*#__PURE__*/React.createElement(IconBtn, {
+      icon: "copy",
+      tone: copiedId === u.id ? theme.green : theme.textFaint,
+      title: "Copy",
+      onClick: () => copy(u)
+    }), confirmRegenId === u.id ? /*#__PURE__*/React.createElement("span", {
+      style: {
+        display: 'flex',
+        gap: 4
+      }
+    }, /*#__PURE__*/React.createElement(Btn, {
+      variant: "danger",
+      onClick: async () => {
+        await API.regenKey(u.id);
+        setConfirmRegenId(null);
+        refresh();
+      }
+    }, "Confirm"), /*#__PURE__*/React.createElement(Btn, {
+      variant: "ghost",
+      onClick: () => setConfirmRegenId(null)
+    }, "Cancel")) : /*#__PURE__*/React.createElement(IconBtn, {
+      icon: "refresh-cw",
+      title: "Regenerate key",
+      onClick: () => setConfirmRegenId(u.id)
+    }), canRemove(u) && /*#__PURE__*/React.createElement(IconBtn, {
+      icon: "trash-2",
+      title: "Remove",
+      onClick: async () => {
+        await API.removeUser(u.id);
+        refresh();
+      }
+    })));
+  }))));
+}
+
+/* ---------------- Dashboard ---------------- */
+function Dashboard({
+  user,
+  users,
+  orders,
+  tasks
+}) {
+  const verified = orders.filter(o => o.status === 'verified');
+  const teamStats = useMemo(() => {
+    const m = {};
+    verified.forEach(o => {
+      const emp = users.find(u => u.id === o.employeeId);
+      const team = emp?.team || 'Unassigned';
+      if (!m[team]) m[team] = {
+        team,
+        count: 0,
+        byCurrency: {}
+      };
+      m[team].count++;
+      m[team].byCurrency[o.currency] = (m[team].byCurrency[o.currency] || 0) + o.amount;
+    });
+    return Object.values(m).sort((a, b) => b.count - a.count);
+  }, [verified, users]);
+  const topSellers = useMemo(() => {
+    const m = {};
+    verified.forEach(o => {
+      if (!m[o.employeeId]) m[o.employeeId] = {
+        id: o.employeeId,
+        name: o.employeeName,
+        count: 0,
+        byCurrency: {}
+      };
+      m[o.employeeId].count++;
+      m[o.employeeId].byCurrency[o.currency] = (m[o.employeeId].byCurrency[o.currency] || 0) + o.amount;
+    });
+    return Object.values(m).sort((a, b) => b.count - a.count).slice(0, 3);
+  }, [verified]);
+  const myStats = useMemo(() => {
+    if (user.role !== 'employee') return null;
+    const mine = verified.filter(o => o.employeeId === user.id);
+    const byCurrency = {};
+    mine.forEach(o => {
+      byCurrency[o.currency] = (byCurrency[o.currency] || 0) + o.amount;
+    });
+    const rank = topSellers.findIndex(s => s.id === user.id);
+    return {
+      count: mine.length,
+      byCurrency,
+      rank
+    };
+  }, [verified, user, topSellers]);
+  const activeTasks = tasks.filter(t => t.status !== 'completed' && !t.deleted).length;
+  const pendingOrders = orders.filter(o => o.status === 'pending').length;
+  const currencyLine = c => Object.entries(c).map(([k, v]) => money(v, k)).join(' · ') || '—';
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h2", {
+    style: {
+      fontWeight: 800,
+      letterSpacing: '-0.01em',
+      color: theme.text,
+      fontSize: 25,
+      marginBottom: 4
+    }
+  }, "Dashboard"), /*#__PURE__*/React.createElement("p", {
+    style: {
+      color: theme.textDim,
+      fontSize: 13,
+      fontWeight: 500,
+      marginBottom: 20
+    }
+  }, "Team standings across all approved commissions."), myStats && /*#__PURE__*/React.createElement(NeonPanel, {
+    style: {
+      marginBottom: 20,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between'
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: theme.textFaint,
+      fontSize: 11.5,
+      fontWeight: 700
+    }
+  }, "Your verified sales"), /*#__PURE__*/React.createElement("div", {
+    className: "mono",
+    style: {
+      color: theme.text,
+      fontSize: 20
+    }
+  }, myStats.count, " ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: theme.gold,
+      fontSize: 14,
+      fontWeight: 700
+    }
+  }, "· ", currencyLine(myStats.byCurrency)))), myStats.rank >= 0 && /*#__PURE__*/React.createElement(Badge, {
+    tone: "gold"
+  }, "#", myStats.rank + 1, " top seller")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3,1fr)',
+      gap: 16,
+      marginBottom: 24
+    }
+  }, /*#__PURE__*/React.createElement(NeonPanel, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: theme.textFaint,
+      fontSize: 11.5,
+      fontWeight: 700
+    }
+  }, "Verified sales"), /*#__PURE__*/React.createElement("div", {
+    className: "mono",
+    style: {
+      color: theme.text,
+      fontSize: 27
+    }
+  }, verified.length)), /*#__PURE__*/React.createElement(NeonPanel, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: theme.textFaint,
+      fontSize: 11.5,
+      fontWeight: 700
+    }
+  }, "Awaiting approval"), /*#__PURE__*/React.createElement("div", {
+    className: "mono",
+    style: {
+      color: theme.amber,
+      fontSize: 27
+    }
+  }, pendingOrders)), /*#__PURE__*/React.createElement(NeonPanel, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: theme.textFaint,
+      fontSize: 11.5,
+      fontWeight: 700
+    }
+  }, "Active tasks"), /*#__PURE__*/React.createElement("div", {
+    className: "mono",
+    style: {
+      color: theme.accent,
+      fontSize: 27
+    }
+  }, activeTasks))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 20
+    }
+  }, /*#__PURE__*/React.createElement(NeonPanel, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "trophy",
+    size: 16,
+    color: theme.gold
+  }), /*#__PURE__*/React.createElement("h3", {
+    style: {
+      color: theme.text,
+      fontSize: 15.5,
+      fontWeight: 800
+    }
+  }, "Top teams")), teamStats.length === 0 && /*#__PURE__*/React.createElement("p", {
+    style: {
+      color: theme.textFaint,
+      fontSize: 13
+    }
+  }, "No verified sales yet."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 12
+    }
+  }, teamStats.map((t, i) => /*#__PURE__*/React.createElement("div", {
+    key: t.team
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      fontSize: 13
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: theme.text,
+      fontWeight: 800
+    }
+  }, i + 1, ". ", t.team), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: theme.textDim,
+      fontWeight: 600
+    }
+  }, t.count, " sale", t.count !== 1 ? 's' : '')), /*#__PURE__*/React.createElement("div", {
+    className: "mono",
+    style: {
+      color: theme.gold,
+      fontSize: 12,
+      marginTop: 2
+    }
+  }, currencyLine(t.byCurrency)), i < teamStats.length - 1 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 10
+    }
+  }, /*#__PURE__*/React.createElement(Rule, null)))))), /*#__PURE__*/React.createElement(NeonPanel, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "trending-up",
+    size: 16,
+    color: theme.accent
+  }), /*#__PURE__*/React.createElement("h3", {
+    style: {
+      color: theme.text,
+      fontSize: 15.5,
+      fontWeight: 800
+    }
+  }, "Top 3 sellers")), topSellers.length === 0 && /*#__PURE__*/React.createElement("p", {
+    style: {
+      color: theme.textFaint,
+      fontSize: 13
+    }
+  }, "No verified sales yet."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 12
+    }
+  }, topSellers.map((s, i) => /*#__PURE__*/React.createElement("div", {
+    key: s.id,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 26,
+      height: 26,
+      borderRadius: 999,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: i === 0 ? theme.goldSoft : theme.surface3,
+      color: i === 0 ? theme.gold : theme.textDim,
+      fontSize: 12,
+      fontWeight: 800,
+      flexShrink: 0
+    }
+  }, i + 1), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: theme.text,
+      fontSize: 13,
+      fontWeight: 800
+    }
+  }, s.name), /*#__PURE__*/React.createElement("div", {
+    className: "mono",
+    style: {
+      color: theme.gold,
+      fontSize: 12
+    }
+  }, currencyLine(s.byCurrency), " · ", s.count, " sale", s.count !== 1 ? 's' : ''))))))), /*#__PURE__*/React.createElement("p", {
+    style: {
+      color: theme.textFaint,
+      fontSize: 11,
+      fontWeight: 500,
+      marginTop: 14
+    }
+  }, "Totals combine currencies at face value — treat multi-currency sums as sales volume, not exact converted revenue."));
+}
+
+/* ---------------- Intro / Rizq reminder ---------------- */
+function IntroGate({
+  onStart
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: theme.bg,
+      padding: '40px 24px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: 620,
+      width: '100%',
+      textAlign: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 56,
+      height: 56,
+      borderRadius: 14,
+      margin: '0 auto 28px',
+      background: 'linear-gradient(135deg,#101B30,#1B2C46)',
+      border: `1px solid ${theme.accentBorder}`,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      boxShadow: '0 0 20px 3px rgba(255,255,255,0.16)'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: '#fff',
+      fontWeight: 800,
+      fontSize: 26,
+      textShadow: '0 0 10px rgba(255,255,255,0.9)'
+    }
+  }, "$")), /*#__PURE__*/React.createElement("p", {
+    dir: "rtl",
+    style: {
+      fontFamily: "'Amiri', serif",
+      color: theme.text,
+      fontSize: 30,
+      lineHeight: 2,
+      marginBottom: 22
+    }
+  }, "وَمَا مِنْ دَابَّةٍ فِي الْأَرْضِ إِلَّا عَلَى اللَّهِ رِزْقُهَا وَيَعْلَمُ مُسْتَقَرَّهَا وَمُسْتَوْدَعَهَا ۚ كُلٌّ فِي كِتَابٍ مُبِينٍ"), /*#__PURE__*/React.createElement("p", {
+    style: {
+      color: theme.textDim,
+      fontSize: 14.5,
+      fontStyle: 'italic',
+      lineHeight: 1.7,
+      maxWidth: 520,
+      margin: '0 auto 6px'
+    }
+  }, "\"And there is no creature on earth but that upon Allah is its provision, and He knows its place of dwelling and place of storage. All is in a clear register.\""), /*#__PURE__*/React.createElement("p", {
+    style: {
+      color: theme.textFaint,
+      fontSize: 12,
+      fontWeight: 700,
+      letterSpacing: '0.03em',
+      marginBottom: 36
+    }
+  }, "— Surah Hud, 11:6"), /*#__PURE__*/React.createElement("p", {
+    style: {
+      color: theme.gold,
+      fontSize: 14,
+      fontWeight: 800,
+      letterSpacing: '0.02em',
+      marginBottom: 22
+    }
+  }, "First read this, then start"), /*#__PURE__*/React.createElement(Btn, {
+    onClick: onStart,
+    style: {
+      padding: '12px 32px',
+      fontSize: 14
+    }
+  }, "Start")));
+}
+
+/* ---------------- Root App ---------------- */
+function App() {
+  const [loading, setLoading] = useState(true);
+  const [showIntro, setShowIntro] = useState(true);
+  const [users, setUsers] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [status, setStatus] = useState({
+    active: false,
+    announcement: null
+  });
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [view, setView] = useState('dashboard');
+  const currentUser = users.find(u => u.id === currentUserId) || null;
+  const refresh = useCallback(async () => {
+    const [u, o, t, s] = await Promise.all([API.users(), API.orders(), API.tasks(), API.status()]);
+    setUsers(u);
+    setOrders(o);
+    setTasks(t);
+    setStatus(s);
+  }, []);
+  useEffect(() => {
+    (async () => {
+      await refresh();
+      const savedId = localStorage.getItem('ledgerUserId');
+      if (savedId) setCurrentUserId(savedId);
+      setLoading(false);
+    })();
+  }, []);
+  useEffect(() => {
+    if (!currentUserId) return;
+    const id = setInterval(() => {
+      refresh();
+    }, 4000);
+    return () => clearInterval(id);
+  }, [currentUserId, refresh]);
+  function login(user) {
+    setCurrentUserId(user.id);
+    localStorage.setItem('ledgerUserId', user.id);
+  }
+  function logout() {
+    setCurrentUserId(null);
+    localStorage.removeItem('ledgerUserId');
+  }
+  async function resetAll() {
+    await API.reset();
+    await refresh();
+    logout();
+  }
+  if (showIntro) return /*#__PURE__*/React.createElement(IntroGate, {
+    onStart: () => setShowIntro(false)
+  });
+  if (loading) return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: theme.bg
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "loader-2",
+    size: 22,
+    color: theme.accent
+  }));
+  if (!currentUser) return /*#__PURE__*/React.createElement(LoginScreen, {
+    users: users,
+    onLogin: login,
+    onReset: resetAll
+  });
+  const safeView = currentUser.role === 'employee' && currentUser.locked && (view === 'orders' || view === 'tasks') ? 'dashboard' : currentUser.role === 'artist' ? 'tasks' : view;
+  const pages = {
+    dashboard: /*#__PURE__*/React.createElement(Dashboard, {
+      user: currentUser,
+      users: users,
+      orders: orders,
+      tasks: tasks
+    }),
+    create: /*#__PURE__*/React.createElement(CreateOrder, {
+      user: currentUser,
+      officeActive: status.active,
+      onCreated: refresh
+    }),
+    orders: /*#__PURE__*/React.createElement(OrdersView, {
+      user: currentUser,
+      orders: orders,
+      tasks: tasks,
+      users: users,
+      refresh: refresh
+    }),
+    tasks: /*#__PURE__*/React.createElement(TasksView, {
+      user: currentUser,
+      tasks: tasks,
+      orders: orders,
+      users: users,
+      refresh: refresh
+    }),
+    team: /*#__PURE__*/React.createElement(ManageTeam, {
+      user: currentUser,
+      users: users,
+      orders: orders,
+      refresh: refresh
+    })
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      background: theme.bg
+    }
+  }, /*#__PURE__*/React.createElement(TopBar, {
+    user: currentUser,
+    status: status,
+    onActivate: async () => {
+      await API.activate(currentUser.name);
+      refresh();
+    },
+    onDeactivate: async () => {
+      await API.deactivate();
+      refresh();
+    },
+    onPost: async text => {
+      await API.postAnnouncement(text, currentUser.name);
+      refresh();
+    },
+    onClear: async () => {
+      await API.clearAnnouncement();
+      refresh();
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flex: 1,
+      minHeight: 0
+    }
+  }, /*#__PURE__*/React.createElement(Sidebar, {
+    user: currentUser,
+    view: safeView,
+    setView: setView,
+    onLogout: logout
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      padding: '28px 34px',
+      overflowY: 'auto'
+    }
+  }, pages[safeView] || pages.dashboard)));
+}
+ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/React.createElement(App, null));
+</script>
+</body>
+</html>
